@@ -1,0 +1,70 @@
+variant: fcos
+version: 1.5.0
+passwd:
+  users:
+    - name: jnt
+      ssh_authorized_keys:
+        - your key here
+storage:
+  filesystems:
+    - device: /dev/disk/by-id/virtio-backup
+      format: btrfs
+      wipe_filesystem: true
+      label: backup
+  files:
+    - path: /etc/btrbk/btrbk.conf
+      contents:
+        local: btrbk.conf
+    - path: /etc/containers/systemd/btrfs-backup.container
+      contents:
+        inline: |
+          [Unit]
+          Description=btrbk backup script
+          Documentation=https://github.com/jbtrystram/btrbk-container
+          [Container]
+          Image=ghcr.io/jbtrystram/btrbk-container:latest
+          ContainerName=btrbk
+          Volume=/var/backup:/var/backup
+          Volume=/etc/btrbk:/etc/btrbk
+          Volume=/etc/ssh/ssh_known_hosts:/etc/ssh/ssh_known_hosts
+          Exec=dryrun
+    - path: /etc/btrbk/ssh/id_ecdsa.pub
+      mode: 0600
+      contents:
+        local: id-ecdsa.pub
+    - path: /etc/btrbk/ssh/id_ecdsa
+      mode: 0600
+      contents:
+        local: id-ecdsa
+    - path: /etc/ssh/ssh_known_hosts
+      mode: 0644
+      contents:
+        local: known_hosts
+systemd:
+  units:
+    - name: var-backup.mount
+      enabled: true
+      contents: |
+          [Unit]
+          Description=Additional drive
+
+          [Mount]
+          What=/dev/disk/by-label/backup
+          Where=/var/backup
+          Type=btrfs
+          Options=defaults
+
+          [Install]
+          WantedBy=multi-user.target
+    - name: btrfs-backup.timer
+      enabled: true
+      contents: |
+          [Unit]
+          Description=schedule for btrfs snapshots
+          [Timer]
+          # 5 min after boot
+          OnBootSec=5min
+          # Twice a week : mondays, thursdays, mornings
+          OnCalendar=Mon,Thu 09:00 Europe/Paris
+          [Install]
+          WantedBy=timers.target

@@ -1,0 +1,6 @@
+btrbk.conf
+*.ign
+# ssh stuff
+id-ecdsa
+id-ecdsa.pub
+known_hosts
