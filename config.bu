@@ -2,15 +2,12 @@ variant: fcos
 version: 1.5.0
 passwd:
   users:
-    - name: jnt
+    - name: core
       ssh_authorized_keys:
         - your key here
 storage:
-  filesystems:
-    - device: /dev/disk/by-id/virtio-backup
-      format: btrfs
-      wipe_filesystem: true
-      label: backup
+  directories:
+    - path: /var/backup
   files:
     - path: /etc/btrbk/btrbk.conf
       contents:
@@ -21,13 +18,17 @@ storage:
           [Unit]
           Description=btrbk backup script
           Documentation=https://github.com/jbtrystram/btrbk-container
+          After=network-online.target
+          Requires=network-online.target
           [Container]
-          Image=ghcr.io/jbtrystram/btrbk-container:latest
+          Image=ghcr.io/jbtrystram/btrbk:latest
           ContainerName=btrbk
+          # needs privileged to access the btrfs volume
+          PodmanArgs=--privileged
           Volume=/var/backup:/var/backup
           Volume=/etc/btrbk:/etc/btrbk
           Volume=/etc/ssh/ssh_known_hosts:/etc/ssh/ssh_known_hosts
-          Exec=dryrun
+          Exec=run -S
     - path: /etc/btrbk/ssh/id_ecdsa.pub
       mode: 0600
       contents:
@@ -46,14 +47,12 @@ systemd:
       enabled: true
       contents: |
           [Unit]
-          Description=Additional drive
-
+          Description=mount backup disk
           [Mount]
           What=/dev/disk/by-label/backup
           Where=/var/backup
           Type=btrfs
           Options=defaults
-
           [Install]
           WantedBy=multi-user.target
     - name: btrfs-backup.timer
